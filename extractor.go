@@ -268,7 +268,13 @@ func formationFromExtendedProcfile(app *App, p procfile.ExtendedProcfile) (Forma
 }
 
 // defaultWebExposure returns an *Exposure suitable for the default "web"
-// process for standard Procfiles.
+// process for STANDARD Procfiles. Specifically:
+//
+//   1. If the app has a domain, it's marked as external.
+//   2. If the app has a cert attached, it's marked as an https exposure. If
+//      not, it's http.
+//
+// This doesn't apply for extended Procfiles.
 func defaultWebExposure(app *App) *Exposure {
 	cert := app.Cert
 	proto := "http"
