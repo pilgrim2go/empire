@@ -85,6 +85,19 @@ type HTTPSExposure struct {
 
 func (e *HTTPSExposure) Protocol() string { return "https" }
 
+// TCPExposure represents a raw TCP exposure.
+type TCPExposure struct{}
+
+func (e *TCPExposure) Protocol() string { return "tcp" }
+
+// SSLExposure represents a secure TCP exposure.
+type SSLExposure struct {
+	// The certificate to attach to the process.
+	Cert string
+}
+
+func (e *SSLExposure) Protocol() string { return "ssl" }
+
 // Instance represents an Instance of a Process.
 type Instance struct {
 	Process *Process

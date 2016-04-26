@@ -21,6 +21,12 @@ func (e ExtendedProcfile) version() string {
 
 type Process struct {
 	Command interface{} `yaml:"command"`
+	Expose  *Exposure   `yaml:"expose,omitempty"`
+}
+
+type Exposure struct {
+	Protocol string `yaml:"protocol"`
+	External bool   `yaml:"external"`
 }
 
 // StandardProcfile represents a standard Procfile.

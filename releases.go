@@ -195,7 +195,7 @@ func buildFormation(db *gorm.DB, release *Release) error {
 		existing = last.Formation
 	}
 
-	f, err := release.Slug.Formation()
+	f, err := release.Slug.Formation(release.App)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func newServiceProcess(release *Release, name string, p Process) *scheduler.Proc
 		MemoryLimit: uint(p.Memory),
 		CPUShares:   uint(p.CPUShare),
 		Nproc:       uint(p.Nproc),
-		Exposure:    processExposure(release.App, name),
+		Exposure:    processExposure(p.Expose),
 	}
 }
 
@@ -306,24 +306,30 @@ func environment(vars Vars) map[string]string {
 	return env
 }
 
-func processExposure(app *App, process string) *scheduler.Exposure {
-	// For now, only the `web` process can be exposed.
-	if process != WebProcessType {
+func processExposure(exposure *Exposure) *scheduler.Exposure {
+	if exposure == nil {
 		return nil
 	}
 
-	exposure := &scheduler.Exposure{
-		External: app.Exposure == ExposePublic,
-	}
+	var t scheduler.ExposureType
 
-	switch app.Cert {
-	case "":
-		exposure.Type = &scheduler.HTTPExposure{}
-	default:
-		exposure.Type = &scheduler.HTTPSExposure{
-			Cert: app.Cert,
+	switch exposure.Protocol {
+	case "http":
+		t = &scheduler.HTTPExposure{}
+	case "https":
+		t = &scheduler.HTTPSExposure{
+			Cert: exposure.Cert,
+		}
+	case "tcp":
+		t = &scheduler.TCPExposure{}
+	case "ssl":
+		t = &scheduler.SSLExposure{
+			Cert: exposure.Cert,
 		}
 	}
 
-	return exposure
+	return &scheduler.Exposure{
+		External: exposure.External,
+		Type:     t,
+	}
 }

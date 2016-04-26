@@ -42,3 +42,13 @@ Specifies the command that should be run when executing this process
 ```yaml
 command: ./bin/web
 ```
+
+**Expose**
+
+Specifies the exposure settings for the process. This allows you to expose a tcp/http/https/ssl service on any process in the application.
+
+```yaml
+expose:
+  type: tcp // Possible options are tcp/http/https/ssl
+  external: true // When true, the attached load balancer will be made "public" (accessible from the internet)
+``

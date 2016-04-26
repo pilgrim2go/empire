@@ -4,6 +4,7 @@ package lb
 import "golang.org/x/net/context"
 
 const AppTag = "App"
+const ProcessTypeTag = "ProcessType"
 
 // CreateLoadBalancerOpts are options that can be provided when creating a
 // LoadBalancer.
@@ -92,8 +93,11 @@ func (m *cnameManager) CreateLoadBalancer(ctx context.Context, opts CreateLoadBa
 		return lb, err
 	}
 
+	// Create a CNAME for the "web" process.
 	if n, ok := opts.Tags[AppTag]; ok {
-		return lb, m.CreateCNAME(n, lb.DNSName)
+		if opts.Tags[ProcessTypeTag] == "web" {
+			return lb, m.CreateCNAME(n, lb.DNSName)
+		}
 	}
 
 	return lb, nil

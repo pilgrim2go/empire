@@ -172,10 +172,8 @@ func TestEmpire_Deploy_Concurrent(t *testing.T) {
 	s := new(mockScheduler)
 	e.Scheduler = scheduler.NewFakeScheduler()
 	e.ProcfileExtractor = empire.ProcfileExtractorFunc(func(ctx context.Context, img image.Image, w io.Writer) ([]byte, error) {
-		return procfile.Marshal(procfile.ExtendedProcfile{
-			"web": procfile.Process{
-				Command: []string{"./bin/web"},
-			},
+		return procfile.Marshal(procfile.StandardProcfile{
+			"web": "./bin/web",
 		})
 	})
 
@@ -201,10 +199,8 @@ func TestEmpire_Deploy_Concurrent(t *testing.T) {
 		case "v3":
 			close(v3Started)
 		}
-		return procfile.Marshal(procfile.ExtendedProcfile{
-			"web": procfile.Process{
-				Command: []string{"./bin/web"},
-			},
+		return procfile.Marshal(procfile.StandardProcfile{
+			"web": "./bin/web",
 		})
 	})
 

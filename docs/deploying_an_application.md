@@ -30,7 +30,7 @@ worker:
   command: celery -A tasks worker --loglevel=info
 ```
 
-The extended Procfile formation is documented [here][extended-procfile].
+The extended Procfile format is fully documented [here][extended-procfile].
 
 Whichever format you use, the file would be named `Procfile`, and live at the directory root for your application.
 
@@ -46,7 +46,7 @@ $ tree .
 
 ## Empire application types
 
-Empire treats "web" and "non-web" services different.  Here, a "web" process is defined as anything which needs to expose a port.  The way to differentiate the two types of processes is easy.
+When using the `standard` Procfile format, Empire treats "web" and "non-web" services different.  Here, a "web" process is defined as anything which needs to expose a port.  The way to differentiate the two types of processes is easy.
 
 ### Non-web processes
 

@@ -40,13 +40,20 @@ web:
   command:
     - nginx
     - -g
-    - daemon off;`),
+    - daemon off;
+  expose:
+    protocol: tcp
+    external: true`),
 		ExtendedProcfile{
 			"web": Process{
 				Command: []interface{}{
 					"nginx",
 					"-g",
 					"daemon off;",
+				},
+				Expose: &Exposure{
+					External: true,
+					Protocol: "tcp",
 				},
 			},
 		},

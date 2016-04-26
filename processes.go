@@ -63,6 +63,14 @@ type Process struct {
 	Memory   constraints.Memory   `json:"Memory,omitempty"`
 	CPUShare constraints.CPUShare `json:"CPUShare,omitempty"`
 	Nproc    constraints.Nproc    `json:"Nproc,omitempty"`
+	Expose   *Exposure            `json:"Expose,omitempty"`
+}
+
+// Exposure holds exposure settings for the Process.
+type Exposure struct {
+	Protocol string `json:"Protocol"`
+	External bool   `json:"External"`
+	Cert     string `json:"Cert,omitempty"` // Only relevant for SSL/HTTPS types.
 }
 
 // Constraints returns a constraints.Constraints from this Process definition.

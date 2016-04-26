@@ -17,13 +17,13 @@ type Slug struct {
 }
 
 // Formation returns a new Formation built from the extracted Procfile.
-func (s *Slug) Formation() (Formation, error) {
+func (s *Slug) Formation(app *App) (Formation, error) {
 	p, err := procfile.ParseProcfile(s.Procfile)
 	if err != nil {
 		return nil, err
 	}
 
-	return formationFromProcfile(p)
+	return formationFromProcfile(app, p)
 }
 
 // slugsCreate inserts a Slug into the database.

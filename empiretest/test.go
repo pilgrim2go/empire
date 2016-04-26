@@ -87,10 +87,8 @@ func Run(m *testing.M) {
 
 // ExtractProcfile extracts a fake Procfile.
 func ExtractProcfile(ctx context.Context, img image.Image, w io.Writer) ([]byte, error) {
-	p, err := procfile.Marshal(procfile.ExtendedProcfile{
-		"web": procfile.Process{
-			Command: []string{"./bin/web"},
-		},
+	p, err := procfile.Marshal(procfile.StandardProcfile{
+		"web": "./bin/web",
 	})
 	if err != nil {
 		return nil, err

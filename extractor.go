@@ -190,12 +190,12 @@ func firstFile(tr *tar.Reader) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func formationFromProcfile(p procfile.Procfile) (Formation, error) {
+func formationFromProcfile(app *App, p procfile.Procfile) (Formation, error) {
 	switch p := p.(type) {
 	case procfile.StandardProcfile:
-		return formationFromStandardProcfile(p)
+		return formationFromStandardProcfile(app, p)
 	case procfile.ExtendedProcfile:
-		return formationFromExtendedProcfile(p)
+		return formationFromExtendedProcfile(app, p)
 	default:
 		return nil, &ProcfileError{
 			Err: errors.New("unknown Procfile format"),
@@ -203,7 +203,7 @@ func formationFromProcfile(p procfile.Procfile) (Formation, error) {
 	}
 }
 
-func formationFromStandardProcfile(p procfile.StandardProcfile) (Formation, error) {
+func formationFromStandardProcfile(app *App, p procfile.StandardProcfile) (Formation, error) {
 	f := make(Formation)
 
 	for name, command := range p {
@@ -212,20 +212,29 @@ func formationFromStandardProcfile(p procfile.StandardProcfile) (Formation, erro
 			return nil, err
 		}
 
+		var exposure *Exposure
+		if name == WebProcessType {
+			exposure = defaultWebExposure(app)
+		}
+
 		f[name] = Process{
 			Command: cmd,
+			Expose:  exposure,
 		}
 	}
 
 	return f, nil
 }
 
-func formationFromExtendedProcfile(p procfile.ExtendedProcfile) (Formation, error) {
+func formationFromExtendedProcfile(app *App, p procfile.ExtendedProcfile) (Formation, error) {
 	f := make(Formation)
 
 	for name, process := range p {
-		var cmd Command
-		var err error
+		var (
+			cmd      Command
+			exposure *Exposure
+			err      error
+		)
 
 		switch command := process.Command.(type) {
 		case string:
@@ -241,10 +250,35 @@ func formationFromExtendedProcfile(p procfile.ExtendedProcfile) (Formation, erro
 			return nil, errors.New("unknown command format")
 		}
 
+		if e := process.Expose; e != nil {
+			exposure = &Exposure{
+				External: e.External,
+				Protocol: e.Protocol,
+				Cert:     app.Cert,
+			}
+		}
+
 		f[name] = Process{
 			Command: cmd,
+			Expose:  exposure,
 		}
 	}
 
 	return f, nil
+}
+
+// defaultWebExposure returns an *Exposure suitable for the default "web"
+// process for standard Procfiles.
+func defaultWebExposure(app *App) *Exposure {
+	cert := app.Cert
+	proto := "http"
+	if cert != "" {
+		proto = "https"
+	}
+
+	return &Exposure{
+		External: app.Exposure == ExposePublic,
+		Protocol: proto,
+		Cert:     cert,
+	}
 }

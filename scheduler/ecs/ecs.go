@@ -514,8 +514,12 @@ func (m *Scheduler) loadBalancer(ctx context.Context, app *scheduler.App, p *sch
 			Tags:     tags,
 		}
 
-		if e, ok := p.Exposure.Type.(*scheduler.HTTPSExposure); ok {
+		switch e := p.Exposure.Type.(type) {
+		case *scheduler.HTTPSExposure:
 			opts.SSLCert = e.Cert
+		case *scheduler.HTTPExposure:
+		default:
+			return nil, fmt.Errorf("can't create %s load balancer", e.Protocol())
 		}
 
 		l, err = m.lb.CreateLoadBalancer(ctx, opts)
