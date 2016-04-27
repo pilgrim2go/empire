@@ -1,6 +1,7 @@
 package procfile
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -9,19 +10,55 @@ import (
 
 // Procfile is a Go representation of process configuration.
 type Procfile interface {
-	version() string
 }
 
 // ExtendedProcfile represents the extended Procfile format.
 type ExtendedProcfile map[string]Process
 
-func (e ExtendedProcfile) version() string {
-	return "extended"
-}
-
 type Process struct {
 	Command interface{} `yaml:"command"`
 	Expose  *Exposure   `yaml:"expose,omitempty"`
+}
+
+// alias so we can get the standard unmarshaller.
+type process Process
+
+var errCommand = &yaml.TypeError{
+	Errors: []string{fmt.Sprintf("command should be provided as a string or []string")},
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaller interface.
+func (p *Process) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var proc process
+	err := unmarshal(&proc)
+	if err != nil {
+		return err
+	}
+	*p = Process(proc)
+
+	p.Command, err = coerceCommand(p.Command)
+	return err
+}
+
+// coerceCommand coerces the command to a string or []string, or returns an
+// error if it's invalid.
+func coerceCommand(v interface{}) (interface{}, error) {
+	switch v := v.(type) {
+	case string:
+		return v, nil
+	case []interface{}:
+		var a []string
+		for _, s := range v {
+			s, ok := s.(string)
+			if !ok {
+				return nil, errCommand
+			}
+			a = append(a, s)
+		}
+		return a, nil
+	default:
+		return nil, errCommand
+	}
 }
 
 type Exposure struct {
@@ -32,13 +69,18 @@ type Exposure struct {
 // StandardProcfile represents a standard Procfile.
 type StandardProcfile map[string]string
 
-func (p StandardProcfile) version() string {
-	return "standard"
-}
-
 // Marshal marshals the Procfile to yaml format.
 func Marshal(p Procfile) ([]byte, error) {
 	return yaml.Marshal(p)
+}
+
+// ParseError is returned when there are errors parsing the yaml document.
+type ParseError struct {
+	YamlErrors *yaml.TypeError
+}
+
+func (e *ParseError) Error() string {
+	return fmt.Sprintf("error parsing Procfile: %s", e.YamlErrors.Error())
 }
 
 // Parse parses the Procfile by reading from r.
@@ -53,11 +95,16 @@ func Parse(r io.Reader) (Procfile, error) {
 
 // ParseProcfile takes a byte slice representing a YAML Procfile and parses it
 // into a Procfile.
-func ParseProcfile(b []byte) (Procfile, error) {
-	p, err := parseStandardProcfile(b)
+func ParseProcfile(b []byte) (p Procfile, err error) {
+	p, err = parseStandardProcfile(b)
 	if err != nil {
 		p, err = parseExtendedProcfile(b)
 	}
+
+	if err, ok := err.(*yaml.TypeError); ok {
+		return p, &ParseError{YamlErrors: err}
+	}
+
 	return p, err
 }
 

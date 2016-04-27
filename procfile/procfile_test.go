@@ -5,12 +5,15 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/stretchr/testify/assert"
 )
 
 var parseTests = []struct {
 	in  io.Reader
 	out Procfile
+	err error
 }{
 	// Simple standard Procfile.
 	{
@@ -19,6 +22,7 @@ web: ./bin/web`),
 		StandardProcfile{
 			"web": "./bin/web",
 		},
+		nil,
 	},
 
 	// Extended Procfile with health checks and http exposure.
@@ -31,6 +35,7 @@ web:
 				Command: "./bin/web",
 			},
 		},
+		nil,
 	},
 
 	// Extended Procfile with health checks and http exposure.
@@ -46,7 +51,7 @@ web:
     external: true`),
 		ExtendedProcfile{
 			"web": Process{
-				Command: []interface{}{
+				Command: []string{
 					"nginx",
 					"-g",
 					"daemon off;",
@@ -57,14 +62,34 @@ web:
 				},
 			},
 		},
+		nil,
+	},
+
+	// Extended Procfile with malformed command
+	{
+		strings.NewReader(`---
+web:
+  command:
+    - nginx: g
+worker:
+  command:
+    nginx: g`),
+		ExtendedProcfile{},
+		&ParseError{
+			YamlErrors: &yaml.TypeError{
+				Errors: []string{
+					"command should be provided as a string or []string",
+					"command should be provided as a string or []string",
+				},
+			},
+		},
 	},
 }
 
 func TestParse(t *testing.T) {
 	for _, tt := range parseTests {
-		t.Log(tt.in)
 		p, err := Parse(tt.in)
-		assert.NoError(t, err)
+		assert.Equal(t, tt.err, err)
 		assert.Equal(t, tt.out, p)
 	}
 }

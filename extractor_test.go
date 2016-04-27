@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/remind101/empire/pkg/httpmock"
 	"github.com/remind101/empire/pkg/image"
+	"github.com/remind101/empire/procfile"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCMDExtractor(t *testing.T) {
@@ -26,23 +27,19 @@ func TestCMDExtractor(t *testing.T) {
 		client: c,
 	}
 
-	got, err := e.Extract(nil, image.Image{
+	procfile, err := e.Extract(nil, image.Image{
 		Tag:        "acme-inc",
 		Repository: "remind101",
 	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	want := []byte(`web:
+	expected := []byte(`web:
   command:
   - /go/bin/app
   - server
 `)
 
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Extract() => %q; want %q", got, want)
-	}
+	assert.Equal(t, expected, procfile)
 }
 
 func TestProcfileExtractor(t *testing.T) {
@@ -67,19 +64,13 @@ func TestProcfileExtractor(t *testing.T) {
 		client: c,
 	}
 
-	got, err := e.Extract(nil, image.Image{
+	procfile, err := e.Extract(nil, image.Image{
 		Tag:        "acme-inc",
 		Repository: "remind101",
 	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := []byte(`web: rails server`)
-
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Extract() => %q; want %q", got, want)
-	}
+	assert.NoError(t, err)
+	expected := []byte(`web: rails server`)
+	assert.Equal(t, expected, procfile)
 
 }
 
@@ -109,24 +100,116 @@ func TestProcfileFallbackExtractor(t *testing.T) {
 		NewCMDExtractor(c),
 	)
 
-	got, err := e.Extract(nil, image.Image{
+	procfile, err := e.Extract(nil, image.Image{
 		Tag:        "acme-inc",
 		Repository: "remind101",
 	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	want := []byte(`web:
+	expected := []byte(`web:
   command:
   - /go/bin/app
   - server
 `)
 
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Extract() => %q; want %q", got, want)
+	assert.Equal(t, expected, procfile)
+}
+
+func TestFormationFromProcfile(t *testing.T) {
+	tests := []struct {
+		app      *App
+		procfile procfile.Procfile
+
+		formation Formation
+		err       error
+	}{
+		// Standard Procfile with an app with no domains or cert.
+		{
+			&App{},
+			procfile.StandardProcfile{
+				"web":    "./bin/web",
+				"worker": "./bin/worker",
+			},
+			Formation{
+				"web": Process{
+					Command: Command{"./bin/web"},
+					Expose: &Exposure{
+						External: false,
+						Protocol: "http",
+					},
+				},
+				"worker": Process{
+					Command: Command{"./bin/worker"},
+				},
+			},
+			nil,
+		},
+
+		// Standard Procfile with an app with a domain and cert.
+		{
+			&App{
+				Exposure: ExposePublic,
+				Cert:     "cert",
+			},
+			procfile.StandardProcfile{
+				"web":    "./bin/web",
+				"worker": "./bin/worker",
+			},
+			Formation{
+				"web": Process{
+					Command: Command{"./bin/web"},
+					Expose: &Exposure{
+						External: true,
+						Protocol: "https",
+						Cert:     "cert",
+					},
+				},
+				"worker": Process{
+					Command: Command{"./bin/worker"},
+				},
+			},
+			nil,
+		},
+
+		// Extended Procfile with basic settings.
+		{
+			&App{
+				Cert: "cert",
+			},
+			procfile.ExtendedProcfile{
+				"web": procfile.Process{
+					Command: "./bin/web",
+					Expose: &procfile.Exposure{
+						External: true,
+						Protocol: "ssl",
+					},
+				},
+				"worker": procfile.Process{
+					Command: []string{"./bin/worker"},
+				},
+			},
+			Formation{
+				"web": Process{
+					Command: Command{"./bin/web"},
+					Expose: &Exposure{
+						External: true,
+						Protocol: "ssl",
+						Cert:     "cert",
+					},
+				},
+				"worker": Process{
+					Command: Command{"./bin/worker"},
+				},
+			},
+			nil,
+		},
 	}
 
+	for _, tt := range tests {
+		formation, err := formationFromProcfile(tt.app, tt.procfile)
+		assert.Equal(t, tt.err, err)
+		assert.Equal(t, tt.formation, formation)
+	}
 }
 
 // newTestDockerClient returns a docker.Client configured to talk to the given http.Handler

@@ -4,11 +4,21 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/remind101/empire/pkg/constraints"
 )
+
+// Acceptable exposure protocols. This will be expanded to tcp/ssl/etc down the
+// road.
+var Protocols = map[string]bool{
+	"http":  true,
+	"https": true,
+	"tcp":   false,
+	"ssl":   false,
+}
 
 // DefaultQuantities maps a process type to the default number of instances to
 // run.
@@ -73,6 +83,22 @@ type Exposure struct {
 	Cert     string `json:"Cert,omitempty"` // Only relevant for SSL/HTTPS types.
 }
 
+func (e *Exposure) IsValid() error {
+	if _, ok := Protocols[e.Protocol]; !ok {
+		return fmt.Errorf("unable to expose %v", e.Protocol)
+	}
+
+	return nil
+}
+
+func (p *Process) IsValid() error {
+	if p.Expose != nil {
+		return p.Expose.IsValid()
+	}
+
+	return nil
+}
+
 // Constraints returns a constraints.Constraints from this Process definition.
 func (p *Process) Constraints() Constraints {
 	return Constraints{
@@ -92,6 +118,16 @@ func (p *Process) SetConstraints(c Constraints) {
 
 // Formation represents a collection of named processes and their configuration.
 type Formation map[string]Process
+
+func (f Formation) IsValid() error {
+	for name, p := range f {
+		if err := p.IsValid(); err != nil {
+			return fmt.Errorf("%s process is invalid: %v", name, err)
+		}
+	}
+
+	return nil
+}
 
 // Scan implements the sql.Scanner interface.
 func (f *Formation) Scan(src interface{}) error {

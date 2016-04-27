@@ -42,6 +42,10 @@ func (r *Release) BeforeCreate() error {
 	return nil
 }
 
+func (r *Release) IsValid() error {
+	return r.Formation.IsValid()
+}
+
 // ReleasesQuery is a Scope implementation for common things to filter releases
 // by.
 type ReleasesQuery struct {

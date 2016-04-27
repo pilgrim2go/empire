@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"reflect"
 
 	"golang.org/x/net/context"
 
@@ -236,18 +237,17 @@ func formationFromExtendedProcfile(app *App, p procfile.ExtendedProcfile) (Forma
 			err      error
 		)
 
-		switch command := process.Command.(type) {
+		switch v := process.Command.(type) {
 		case string:
-			cmd, err = ParseCommand(command)
+			cmd, err = ParseCommand(v)
 			if err != nil {
 				return nil, err
 			}
-		case []interface{}:
-			for _, v := range command {
-				cmd = append(cmd, v.(string))
-			}
+		case []string:
+			cmd = Command(v)
 		default:
-			return nil, errors.New("unknown command format")
+			// This should never happen.
+			panic(fmt.Sprintf("unknown command formation %v", reflect.TypeOf(v)))
 		}
 
 		if e := process.Expose; e != nil {
