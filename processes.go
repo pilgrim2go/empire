@@ -84,7 +84,7 @@ type Exposure struct {
 }
 
 func (e *Exposure) IsValid() error {
-	if _, ok := Protocols[e.Protocol]; !ok {
+	if supported := Protocols[e.Protocol]; !supported {
 		return fmt.Errorf("unable to expose %v", e.Protocol)
 	}
 

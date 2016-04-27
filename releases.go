@@ -39,7 +39,7 @@ type Release struct {
 func (r *Release) BeforeCreate() error {
 	t := timex.Now()
 	r.CreatedAt = &t
-	return nil
+	return r.IsValid()
 }
 
 func (r *Release) IsValid() error {

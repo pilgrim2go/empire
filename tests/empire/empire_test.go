@@ -141,6 +141,56 @@ func TestEmpire_Deploy(t *testing.T) {
 	s.AssertExpectations(t)
 }
 
+func TestEmpire_Deploy_UnsupportedExposure(t *testing.T) {
+	e := empiretest.NewEmpire(t)
+	s := new(mockScheduler)
+	e.Scheduler = s
+	e.ProcfileExtractor = empire.ProcfileExtractorFunc(func(ctx context.Context, img image.Image, w io.Writer) ([]byte, error) {
+		return procfile.Marshal(procfile.ExtendedProcfile{
+			"web": procfile.Process{
+				Command: []string{"./bin/web"},
+				Expose: &procfile.Exposure{
+					Protocol: "tcp",
+				},
+			},
+		})
+	})
+
+	_, err := e.Deploy(context.Background(), empire.DeploymentsCreateOpts{
+		User:   &empire.User{Name: "ejholmes"},
+		Output: ioutil.Discard,
+		Image:  image.Image{Repository: "remind101/acme-inc"},
+	})
+	assert.EqualError(t, err, "web process is invalid: unable to expose tcp")
+
+	s.AssertExpectations(t)
+}
+
+func TestEmpire_Deploy_NoCert(t *testing.T) {
+	e := empiretest.NewEmpire(t)
+	s := new(mockScheduler)
+	e.Scheduler = s
+	e.ProcfileExtractor = empire.ProcfileExtractorFunc(func(ctx context.Context, img image.Image, w io.Writer) ([]byte, error) {
+		return procfile.Marshal(procfile.ExtendedProcfile{
+			"web": procfile.Process{
+				Command: []string{"./bin/web"},
+				Expose: &procfile.Exposure{
+					Protocol: "https",
+				},
+			},
+		})
+	})
+
+	_, err := e.Deploy(context.Background(), empire.DeploymentsCreateOpts{
+		User:   &empire.User{Name: "ejholmes"},
+		Output: ioutil.Discard,
+		Image:  image.Image{Repository: "remind101/acme-inc"},
+	})
+	assert.EqualError(t, err, "web process is invalid: https protocol was chosen, but no certificate provided")
+
+	s.AssertExpectations(t)
+}
+
 func TestEmpire_Deploy_ImageNotFound(t *testing.T) {
 	e := empiretest.NewEmpire(t)
 	s := new(mockScheduler)
