@@ -515,4 +515,48 @@ ALTER TABLE apps ADD COLUMN exposure TEXT NOT NULL default 'private'`,
 			`CREATE UNIQUE INDEX index_processes_on_release_id_and_type ON processes USING btree (release_id, "type")`,
 		}),
 	},
+
+	// This migration adds the Expose attribute to all existing Formations.
+	{
+		ID: 16,
+		Up: func(tx *sql.Tx) error {
+			rows, err := tx.Query(`SELECT releases.id as id, releases.formation as formation, apps.cert as cert, apps.exposure as exposure FROM releases INNER JOIN apps ON releases.app_id = apps.id`)
+			if err != nil {
+				return err
+			}
+
+			formations := make(map[string]Formation)
+			for rows.Next() {
+				var releaseID, exposure string
+				var cert *string
+				var formation Formation
+				if err := rows.Scan(&releaseID, &formation, &cert, &exposure); err != nil {
+					return err
+				}
+				if p, ok := formation["web"]; ok {
+					p.Expose = &Exposure{
+						External: exposure == ExposePublic,
+						Protocol: "http",
+					}
+					if cert != nil {
+						p.Expose.Protocol = "https"
+						p.Expose.Cert = *cert
+					}
+					formation["web"] = p
+				}
+				formations[releaseID] = formation
+			}
+
+			rows.Close()
+
+			for id, formation := range formations {
+				if _, err := tx.Exec(`UPDATE releases SET formation = $1 WHERE id = $2`, formation, id); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
+		Down: migrate.Queries([]string{}),
+	},
 }
