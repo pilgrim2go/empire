@@ -88,6 +88,12 @@ func (e *Exposure) IsValid() error {
 		return fmt.Errorf("unable to expose %v", e.Protocol)
 	}
 
+	if e.Protocol == "https" || e.Protocol == "ssl" {
+		if e.Cert == "" {
+			return fmt.Errorf("%s protocol was chosen, but no certificate provided", e.Protocol)
+		}
+	}
+
 	return nil
 }
 
