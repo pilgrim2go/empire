@@ -133,7 +133,7 @@ Processes that should run at scheduled times can be configured in the extended p
 ```
 scheduled-job:
   command: ./bin/scheduled-job
-  cron: * * * * * * // Run once every minute
+  cron: '0/2 * * * ? *' // Run once every 2 minutes
 ```
 
 Like other non-web processes, scheduled processes are disabled by default. To enable a scheduled job, simply scale it up:
@@ -153,6 +153,8 @@ To disable a scheduled job, simply scale it back down to 0:
 ```console
 $ emp scale scheduled-job=0
 ```
+
+Refer to http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/ScheduledEvents.html for details on the cron expression syntax.
 
 ## Environment variables
 
